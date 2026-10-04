@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vllm-vqtoken"
+version = "0.1.0"
+description = "Out-of-tree vLLM model plugin for released fixed-K VQToken"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+license = "Apache-2.0 AND BSD-3-Clause"
+license-files = ["LICENSES/*", "THIRD_PARTY_NOTICES.md"]
+authors = [{name = "VQToken contributors"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Repository = "https://github.com/Hai-chao-Zhang/vllm-vqtoken"
+Issues = "https://github.com/Hai-chao-Zhang/vllm-vqtoken/issues"
+Paper = "https://arxiv.org/abs/2503.16980"
+
+[project.entry-points."vllm.general_plugins"]
+vqtoken_model = "vllm_vqtoken:register"
+
+[project.optional-dependencies]
+vllm = [
+    "vllm==0.30.0",
+    "transformers==5.16.1",
+]
+test = [
+    "numpy",
+    "pytest>=8",
+    "torch",
+]
+
+[tool.setuptools.packages.find]
+include = ["vllm_vqtoken*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "SIM", "UP"]

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vqtoken-vllm-checkpoint-tools"
+version = "0.1.0"
+description = "Auditable conversion of the publicly released VQToken checkpoint"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-3-Clause AND Apache-2.0"
+license-files = ["LICENSE", "APACHE-2.0.txt", "THIRD_PARTY_NOTICES.md"]
+
+[project.urls]
+Repository = "https://github.com/Hai-chao-Zhang/vllm-vqtoken/tree/main/checkpoint_tools"
+
+[tool.setuptools.packages.find]
+include = ["vqtoken_checkpoint*"]
+
+[tool.setuptools.data-files]
+"share/vqtoken-vllm-checkpoint-tools/metadata" = [
+    "metadata/*.json",
+    "metadata/*.md",
+]
+"share/vqtoken-vllm-checkpoint-tools/metadata/video_processor" = [
+    "metadata/video_processor/*.json",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

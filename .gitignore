@@ -1,0 +1,10 @@
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+*.safetensors
+conversion-manifest.json
+*.mp4

@@ -1,0 +1,115 @@
+name: unit-and-package
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - name: Create test environment
+        run: |
+          uv venv --python 3.12
+          uv pip install --python .venv/bin/python -e '.[test]' ruff build
+      - name: Run dependency-light tests
+        run: |
+          .venv/bin/python -m pytest -q \
+            tests/test_algorithms.py \
+            tests/test_registration.py \
+            tests/test_semantics.py
+          (cd checkpoint_tools && ../.venv/bin/python -m unittest discover -v)
+      - name: Lint and build distributions
+        run: |
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
+          .venv/bin/python -m build --wheel --sdist
+          (cd checkpoint_tools && ../.venv/bin/python -m build --wheel --sdist)
+      - name: Verify converter metadata is packaged
+        run: |
+          .venv/bin/python - <<'PY'
+          from pathlib import Path
+          import tarfile
+          import zipfile
+
+          expected = {
+              "MODEL_CARD.template.md",
+              "config.json",
+              "preprocessor_config.json",
+              "processor_config.json",
+              "video_preprocessor_config.json",
+              "video_processor/preprocessor_config.json",
+          }
+          wheel = next(Path("checkpoint_tools/dist").glob("*.whl"))
+          with zipfile.ZipFile(wheel) as archive:
+              names = archive.namelist()
+          wheel_metadata = {
+              name.split("/metadata/", 1)[1]
+              for name in names
+              if "/metadata/" in name
+          }
+          assert expected <= wheel_metadata, (wheel, expected - wheel_metadata)
+          for suffix in (
+              "licenses/APACHE-2.0.txt",
+              "licenses/LICENSE",
+              "licenses/THIRD_PARTY_NOTICES.md",
+          ):
+              assert any(name.endswith(suffix) for name in names), suffix
+
+          sdist = next(Path("checkpoint_tools/dist").glob("*.tar.gz"))
+          with tarfile.open(sdist) as archive:
+              names = archive.getnames()
+          sdist_metadata = {
+              name.split("/metadata/", 1)[1]
+              for name in names
+              if "/metadata/" in name
+          }
+          assert expected <= sdist_metadata, (sdist, expected - sdist_metadata)
+          for suffix in (
+              "/APACHE-2.0.txt",
+              "/LICENSE",
+              "/THIRD_PARTY_NOTICES.md",
+          ):
+              assert any(name.endswith(suffix) for name in names), suffix
+          PY
+          uv venv /tmp/vqtoken-converter-venv --python 3.12
+          uv pip install --python /tmp/vqtoken-converter-venv/bin/python \
+            checkpoint_tools/dist/*.whl
+          (cd /tmp && /tmp/vqtoken-converter-venv/bin/python - <<'PY'
+          from vqtoken_checkpoint import get_metadata_dir
+
+          metadata_dir = get_metadata_dir()
+          assert (metadata_dir / "config.json").is_file(), metadata_dir
+          assert (metadata_dir / "MODEL_CARD.template.md").is_file(), metadata_dir
+          print(metadata_dir)
+          PY
+          )
+
+  vllm-stable-import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - name: Install the pinned stable compatibility environment
+        run: |
+          uv venv --python 3.12
+          uv pip install --python .venv/bin/python \
+            -e '.[vllm,test]' \
+            --torch-backend=auto
+      - name: Require and exercise the vLLM adapter
+        env:
+          VQTOKEN_REQUIRE_VLLM: "1"
+          VLLM_PLUGINS: vqtoken_model
+        run: |
+          .venv/bin/python -m pytest -q \
+            tests/test_vllm_integration.py \
+            -k 'not full_checkpoint'
